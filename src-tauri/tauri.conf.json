@@ -13,10 +13,12 @@
     "windows": [
       {
         "title": "mimo",
-        "width": 800,
-        "height": 600,
+        "width": 1000,
+        "minWidth": 1000,
+        "height": 650,
+        "minHeight": 650,
         "decorations": false,
-        "backgroundColor": "#171717"
+        "backgroundColor": "#FAFAFA"
       }
     ],
     "security": {

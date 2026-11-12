@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+@theme inline {
+    --color-background: var(--background);
+    --color-sidebar: var(--sidebar);
+    --color-border: var(--border);
+    --color-text-primary: var(--text-primary);
+    --color-text-secondary: var(--text-secondary);
+    --color-text-idle: var(--text-idle);
+    --color-icon: var(--icon);
+}
+
+:root {
+    --background: #fafafa;
+    --sidebar: #f4f4f5;
+    --border: #e4e4e7;
+    --text-primary: #18181b;
+    --text-secondary: #71717a;
+    --text-idle: #afafaf;
+    --icon: #71717a;
+}
+
+.dark {
+    --background: #111113;
+    --sidebar: #27272a;
+    --border: #27272a;
+    --text-primary: #ededed;
+    --text-secondary: #a1a1aa;
+    --text-idle: #4d4d4d;
+    --icon: #a1a1aa;
+}

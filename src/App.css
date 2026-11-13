@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+    --width-sidebar: 324px;
+    --height-sidebar: 100%;
+}
+
 @theme inline {
     --color-background: var(--background);
     --color-sidebar: var(--sidebar);
@@ -22,7 +27,7 @@
 
 .dark {
     --background: #111113;
-    --sidebar: #27272a;
+    --sidebar: #18181b;
     --border: #27272a;
     --text-primary: #ededed;
     --text-secondary: #a1a1aa;

@@ -1,3 +1,19 @@
+import { useEffect } from "react";
+import Content from "./components/Content";
+import Sidebar from "./components/Sidebar";
+import { useTheme } from "./store/Theme";
+
 export default function App() {
-  return <main></main>;
+  const scheme = useTheme((state) => state.scheme);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", scheme === "dark");
+  }, [scheme]);
+
+  return (
+    <main className="w-full h-screen flex dark:bg-background">
+      <Sidebar />
+      <Content />
+    </main>
+  );
 }

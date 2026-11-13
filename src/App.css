@@ -34,3 +34,38 @@
     --text-idle: #4d4d4d;
     --icon: #a1a1aa;
 }
+
+@plugin "@tailwindcss/typography";
+
+.prose pre,
+pre {
+    background: #262626 !important;
+    padding: 0;
+}
+
+pre code.hljs {
+    background: transparent !important;
+    padding: 1rem;
+}
+
+.markdown-alert {
+    border-left: 4px solid #6b675b;
+    background: #23211c;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+}
+.markdown-alert-note {
+    border-color: #7fb4ca;
+}
+.markdown-alert-tip {
+    border-color: #8fbf7f;
+}
+.markdown-alert-important {
+    border-color: #b48ead;
+}
+.markdown-alert-warning {
+    border-color: #e0a458;
+}
+.markdown-alert-caution {
+    border-color: #e06c75;
+}

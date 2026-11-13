@@ -1,10 +1,11 @@
 import { useEffect } from "react";
-import { ShowNotes, DeleteNote } from "../sql/Notes";
+import { ShowNotes, DeleteNote, GetNote } from "../sql/Notes";
 import { useNotes } from "../store/Notes";
 import { Trash } from "lucide-react";
 
 export default function Body() {
   const notes = useNotes((state) => state.notes);
+  const setNote = useNotes((state) => state.setNote);
   const setNotes = useNotes((state) => state.setNotes);
   const deleteNote = useNotes((state) => state.deleteNote);
 
@@ -22,18 +23,41 @@ export default function Body() {
   }, [setNotes]);
 
   const handleDeleteNote = async (id: number) => {
-    deleteNote(id);
-    await DeleteNote(id);
+    try {
+      await DeleteNote(id);
+      deleteNote(id);
+    } catch (error) {
+      console.error("Error deleting note:", error);
+    }
+  };
+
+  const handleGetData = async (idx: number) => {
+    try {
+      const data = await GetNote(idx);
+      if (!data) return;
+      setNote(data);
+    } catch (error) {
+      console.error("Error getting note:", error);
+    }
   };
 
   const NOTES = notes.map((note) => {
+    const title = note.title.trim();
+    const words = title.split(/\s+/);
+
+    const TitleCut =
+      words.length > 5 ? words.slice(0, 5).join(" ") + "..." : title;
+
     return (
       <div
         key={note.id}
         className="w-full h-10 flex items-center justify-between pr-2"
       >
-        <button className="flex-1 h-10 flex shrink-0 items-center pl-4  outline-none select-none text-[12px] text-text-secondary hover:text-text-primary dark:text-text-secondary">
-          {note.title}
+        <button
+          onClick={() => handleGetData(note.id)}
+          className="flex-1 h-10 flex shrink-0 items-center pl-4  outline-none select-none text-[12px] text-text-secondary hover:text-text-primary dark:text-text-secondary"
+        >
+          {TitleCut}
         </button>
         <Trash
           onClick={() => handleDeleteNote(note.id)}

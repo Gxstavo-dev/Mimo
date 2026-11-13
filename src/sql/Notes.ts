@@ -11,9 +11,7 @@ interface Note {
 
 export const ShowNotes = async () => {
   await Tables();
-  const rows = await db.select<Note[]>(
-    `SELECT * FROM notes ORDER BY id DESC`,
-  );
+  const rows = await db.select<Note[]>(`SELECT * FROM notes ORDER BY id DESC`);
   return rows;
 };
 
@@ -47,8 +45,10 @@ export const DeleteNote = async (id: number) => {
   await db.execute(`DELETE FROM notes WHERE id = $1`, [id]);
 };
 
-export const GetNote = async (id: number) => {
+export const GetNote = async (id: number): Promise<Note | null> => {
   await Tables();
-  const row = await db.select<Note>(`SELECT * FROM notes WHERE id = $1`, [id]);
-  return row;
+  const row = await db.select<Note[]>(`SELECT * FROM notes WHERE id = $1`, [
+    id,
+  ]);
+  return row[0] ?? null;
 };

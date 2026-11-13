@@ -10,6 +10,8 @@ interface Note {
 
 interface Notes {
   notes: Note[];
+  note: Note | null;
+  setNote: (data: Note) => void;
   setNotes: (data: Note[]) => void;
   addNote: (note: Note) => void;
   updateNote: (id: number, changes: Partial<Note>) => void;
@@ -18,6 +20,8 @@ interface Notes {
 
 export const useNotes = create<Notes>((set) => ({
   notes: [],
+  note: null,
+  setNote: (data) => set({ note: data }),
   setNotes: (data) => set({ notes: data }),
   addNote: (note) => set((state) => ({ notes: [...state.notes, note] })),
   updateNote: (id, changes) =>

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import Database from "@tauri-apps/plugin-sql";
 
-const DB_URL = "sqlite:app_mimo.db";
+const DB_URL = "sqlite:appmimo.db";
 
 interface DatabaseState {
   db: Database | null;

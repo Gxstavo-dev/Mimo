@@ -5,7 +5,7 @@ export default function Head() {
   const toggleHidde = useHiddeSidebar((state) => state.toggle);
 
   return (
-    <section className="w-full h-13 flex gap-2 items-center justify-between pl-2 pr-2">
+    <section className="w-full h-13 flex shrink-0 gap-2 items-center justify-between pl-2 pr-2">
       <div className="flex-1 flex items-center gap-2 pl-2">
         <PanelRight
           onClick={() => toggleHidde()}

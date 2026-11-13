@@ -7,7 +7,7 @@ export default function Footer() {
   console.log(scheme);
 
   return (
-    <section className="w-full h-15 flex items-center justify-end pr-2">
+    <section className="w-full h-15 shrink-0 flex items-center justify-end pr-2">
       {scheme == "light" && (
         <Moon
           onClick={() => toggleTheme()}

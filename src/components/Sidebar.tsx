@@ -13,7 +13,7 @@ export default function Sidebar() {
       className={`${
         hidde
           ? "w-0 h-0 overflow-hidden"
-          : "w-sidebar h-sidebar flex flex-col gap-1 bg-sidebar border-r border-r-border dark:bg-sidebar dark:border-r dark:border-r-border"
+          : "w-sidebar h-sidebar flex shrink-0 flex-col gap-1 overflow-hidden bg-sidebar border-r border-r-border dark:bg-sidebar dark:border-r dark:border-r-border"
       }`}
     >
       {hidde && (

@@ -63,9 +63,20 @@ export default function Content() {
 
   const handleUpdateTag = async (id: number, title: string) => {
     const savedTitle = title.trim() || "Untitled";
-    await UpdateTag(id, savedTitle);
+    setEditingTagId((currentId) => (currentId === id ? null : currentId));
     updateTag(id, { title: savedTitle });
-    setEditingTagId(null);
+    try {
+      await UpdateTag(id, savedTitle);
+    } catch (error) {
+      console.error("Error updating tag:", error);
+    }
+  };
+
+  const handleAddTagFromButton = async (idNote: number) => {
+    if (editingTagId !== null) {
+      await handleUpdateTag(editingTagId, valueTag);
+    }
+    await handleAddTag(idNote, "");
   };
 
   const TAGS = tags.map((tag) => {
@@ -83,14 +94,14 @@ export default function Content() {
             value={valueTag}
             onChange={(e) => setValueTag(e.target.value)}
             placeholder="Writte the title tag"
-            className="text-text-primary text-[11px] w-28 min-w-0 outline-none select-none"
+            className="text-text-primary text-[12px] w-28 min-w-0 outline-none select-none"
             onBlur={() => handleUpdateTag(tag.id, valueTag)}
             onKeyDown={(event) => {
               if (event.key === "Enter") event.currentTarget.blur();
             }}
           />
         ) : (
-          <p className="text-[10px] text-text-primary hover:text-text-secondary">
+          <p className="text-[12px] text-text-primary hover:text-text-secondary">
             {tag.title}
           </p>
         )}
@@ -229,18 +240,19 @@ export default function Content() {
             <p className="w-full text-text-secondary text-[10px]">
               Ultima actualizacion {formatTime(selectedNote.updated_at)}
             </p>
-            <div className="w-full h-10 flex items-center">
-              <p className="text-text-secondary text-[11px]">Tags:</p>
-              <div className="flex-1 min-w-0 h-full flex items-center gap-2">
+            <div className="w-full h-10 flex items-center ">
+              <p className="text-text-secondary text-[12px]">Tags:</p>
+              <div className="flex-1 min-w-0 h-full flex  items-center gap-2 pl-2">
+                <div className="h-full w-fit min-w-0 max-w-[calc(100%-6rem)] flex-none flex overflow-x-auto items-center gap-2 pl-2">
+                  {TAGS}
+                </div>
                 <button
-                  onClick={() => handleAddTag(selectedNote.id, "")}
-                  className="shrink-0 text-[10px] text-text-secondary hover:text-text-primary px-2 py-0.7 cursor-pointer select-none outline-none"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleAddTagFromButton(selectedNote.id)}
+                  className="shrink-0 text-[12px] text-text-secondary hover:text-text-primary px-2 py-0.7 cursor-pointer select-none outline-none"
                 >
                   + Add tag
                 </button>
-                <div className="h-full min-w-0 flex-1 flex overflow-x-auto items-center gap-2 pl-1">
-                  {TAGS}
-                </div>
               </div>
             </div>
           </header>

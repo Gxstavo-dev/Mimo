@@ -1,8 +1,20 @@
 import { PanelRight, Plus, Search } from "lucide-react";
 import { useHiddeSidebar } from "../store/HiddeSidebar";
+import { CreateNote, ShowNotes } from "../sql/Notes";
+import { useNotes } from "../store/Notes";
 
 export default function Head() {
   const toggleHidde = useHiddeSidebar((state) => state.toggle);
+  const setNotes = useNotes((state) => state.setNotes);
+
+  const handleCreate = async () => {
+    try {
+      await CreateNote();
+      setNotes(await ShowNotes());
+    } catch (error) {
+      console.error("Error creating note:", error);
+    }
+  };
 
   return (
     <section className="w-full h-13 flex shrink-0 gap-2 items-center justify-between pl-2 pr-2">
@@ -24,6 +36,7 @@ export default function Head() {
         </div>
       </div>
       <Plus
+        onClick={handleCreate}
         size={15}
         className="text-icon cursor-pointer outline-none select-none"
       />

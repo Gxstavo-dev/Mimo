@@ -11,7 +11,9 @@ interface Note {
 
 export const ShowNotes = async () => {
   await Tables();
-  const rows = await db.select<Note[]>(`SELECT * FROM notes`);
+  const rows = await db.select<Note[]>(
+    `SELECT * FROM notes ORDER BY id DESC`,
+  );
   return rows;
 };
 

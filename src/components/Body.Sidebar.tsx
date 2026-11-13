@@ -1,10 +1,12 @@
 import { useEffect } from "react";
-import { ShowNotes } from "../sql/Notes";
+import { ShowNotes, DeleteNote } from "../sql/Notes";
 import { useNotes } from "../store/Notes";
+import { Trash } from "lucide-react";
 
 export default function Body() {
   const notes = useNotes((state) => state.notes);
   const setNotes = useNotes((state) => state.setNotes);
+  const deleteNote = useNotes((state) => state.deleteNote);
 
   useEffect(() => {
     const loadNotes = async () => {
@@ -19,14 +21,27 @@ export default function Body() {
     loadNotes();
   }, [setNotes]);
 
+  const handleDeleteNote = async (id: number) => {
+    deleteNote(id);
+    await DeleteNote(id);
+  };
+
   const NOTES = notes.map((note) => {
     return (
-      <button
+      <div
         key={note.id}
-        className="w-full h-10  flex shrink-0 items-center pl-4 outline-none select-none text-[12px] text-text-secondary hover:text-text-primary dark:text-text-secondary"
+        className="w-full h-10 flex items-center justify-between pr-2"
       >
-        {note.title}
-      </button>
+        <button className="flex-1 h-10 flex shrink-0 items-center pl-4  outline-none select-none text-[12px] text-text-secondary hover:text-text-primary dark:text-text-secondary">
+          {note.title}
+        </button>
+        <Trash
+          onClick={() => handleDeleteNote(note.id)}
+          size={15}
+          color="red"
+          className="cursor-pointer outline-none select-none"
+        />
+      </div>
     );
   });
 

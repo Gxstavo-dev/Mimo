@@ -17,7 +17,7 @@ export default function App() {
   }, [scheme]);
 
   return (
-    <main className="w-full h-screen flex dark:bg-background">
+    <main className="w-full h-screen overflow-hidden shrink-0 flex dark:bg-background">
       <Sidebar />
       <Content />
     </main>

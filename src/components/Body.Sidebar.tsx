@@ -46,7 +46,7 @@ export default function Body() {
     const words = title.split(/\s+/);
 
     const TitleCut =
-      words.length > 5 ? words.slice(0, 5).join(" ") + "..." : title;
+      words.length > 9 ? words.slice(0, 9).join(" ") + "..." : title;
 
     return (
       <div

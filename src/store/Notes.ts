@@ -11,7 +11,7 @@ interface Note {
 interface Notes {
   notes: Note[];
   note: Note | null;
-  setNote: (data: Note) => void;
+  setNote: (data: Note | null) => void;
   setNotes: (data: Note[]) => void;
   addNote: (note: Note) => void;
   updateNote: (id: number, changes: Partial<Note>) => void;

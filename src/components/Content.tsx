@@ -1,8 +1,9 @@
-// import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNotes } from "../store/Notes";
 import { UpdateNote } from "../sql/Notes";
-import Editor from "./Editor";
+import { useTags } from "../store/Tags";
+import { ShowTags, CreateTag, DeleteTag, UpdateTag } from "../sql/Tags";
+import { X } from "lucide-react";
 
 const formatTime = (date: string) => {
   const time = date.split(/[ T]/)[1];
@@ -11,13 +12,96 @@ const formatTime = (date: string) => {
 
 export default function Content() {
   const note = useNotes((state) => state.note);
+  const notes = useNotes((state) => state.notes);
   const setNote = useNotes((state) => state.setNote);
   const updateNote = useNotes((state) => state.updateNote);
+
+  const tags = useTags((state) => state.tags);
+  const setTags = useTags((state) => state.setTags);
+  const deleteTag = useTags((state) => state.deleteTag);
+  const updateTag = useTags((state) => state.updateTag);
+
   const [edit, setEdit] = useState(false);
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const lastEscRef = useRef(0);
   const historyRef = useRef<string[]>([]);
+
+  const [editingTagId, setEditingTagId] = useState<number | null>(null);
+  const [newTagId, setNewTagId] = useState<number | null>(null);
+  const [valueTag, setValueTag] = useState("");
+
+  const selectedNote = notes.find((item) => item.id === note?.id);
+
+  useEffect(() => {
+    if (!selectedNote) {
+      setTags([]);
+      return;
+    }
+
+    ShowTags(selectedNote.id)
+      .then(setTags)
+      .catch((error) => console.error("Error loading tags:", error));
+  }, [selectedNote?.id, setTags]);
+
+  const handleAddTag = async (idNote: number, title: string) => {
+    try {
+      const id = await CreateTag(title, idNote);
+      setTags(await ShowTags(idNote));
+      setValueTag("");
+      setEditingTagId(id);
+      setNewTagId(id);
+    } catch (error) {
+      console.error("Error creating tag:", error);
+    }
+  };
+
+  const handleDeleteTag = async (id: number) => {
+    await DeleteTag(id);
+    deleteTag(id);
+  };
+
+  const handleUpdateTag = async (id: number, title: string) => {
+    const savedTitle = title.trim() || "Untitled";
+    await UpdateTag(id, savedTitle);
+    updateTag(id, { title: savedTitle });
+    setEditingTagId(null);
+  };
+
+  const TAGS = tags.map((tag) => {
+    return (
+      <div
+        key={tag.id}
+        className={`w-fit shrink-0 gap-1 flex items-center justify-center outline-none select-none ${newTagId === tag.id ? "tag-appear" : ""}`}
+        onAnimationEnd={() => {
+          setNewTagId((currentId) => (currentId === tag.id ? null : currentId));
+        }}
+      >
+        {editingTagId === tag.id ? (
+          <input
+            autoFocus
+            value={valueTag}
+            onChange={(e) => setValueTag(e.target.value)}
+            placeholder="Writte the title tag"
+            className="text-text-primary text-[11px] w-28 min-w-0 outline-none select-none"
+            onBlur={() => handleUpdateTag(tag.id, valueTag)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+          />
+        ) : (
+          <p className="text-[10px] text-text-primary hover:text-text-secondary">
+            {tag.title}
+          </p>
+        )}
+        <X
+          onClick={() => handleDeleteTag(tag.id)}
+          size={10}
+          className="text-icon cursor-pointer outline-none select-none"
+        />
+      </div>
+    );
+  });
 
   useEffect(() => {
     setEdit(false);
@@ -112,7 +196,7 @@ export default function Content() {
 
   return (
     <section className="flex-1 flex items-center  justify-center gap-1 h-full bg-background">
-      {note && (
+      {selectedNote && (
         <div className="w-[90%] h-[95%] flex flex-col gap-2 shrink-0 ">
           <header className="w-full flex flex-col items-center  gap-4">
             {edit ? (
@@ -138,36 +222,28 @@ export default function Content() {
                 onClick={startEdit}
                 className="text-text-primary w-full shrink-0"
               >
-                {note?.title}
+                {selectedNote.title}
               </h1>
             )}
 
             <p className="w-full text-text-secondary text-[10px]">
-              Ultima actualizacion {formatTime(note.updated_at)}
+              Ultima actualizacion {formatTime(selectedNote.updated_at)}
             </p>
             <div className="w-full h-10 flex items-center">
               <p className="text-text-secondary text-[11px]">Tags:</p>
-              <div className="flex-1 h-full flex items-center">
-                <button className="text-[10px] text-text-secondary hover:text-text-primary px-2 py-0.7 cursor-pointer select-none outline-none">
+              <div className="flex-1 min-w-0 h-full flex items-center gap-2">
+                <button
+                  onClick={() => handleAddTag(selectedNote.id, "")}
+                  className="shrink-0 text-[10px] text-text-secondary hover:text-text-primary px-2 py-0.7 cursor-pointer select-none outline-none"
+                >
                   + Add tag
                 </button>
-                <div className="h-full flex-1 flex shrink-0 overflow1-y-scroll items-center gap-2">
-                  {
-                    // <button className="w-20 gap-1 flex items-center justify-center cursor-pointer outline-none select-none">
-                    //   <p className="text-[10px] text-text-primary hover:text-text-secondary">
-                    //     Workspaces
-                    //   </p>
-                    //   <X
-                    //     size={10}
-                    //     className="text-icon cursor-pointer outline-none select-none"
-                    //   />
-                    // </button>
-                  }
+                <div className="h-full min-w-0 flex-1 flex overflow-x-auto items-center gap-2 pl-1">
+                  {TAGS}
                 </div>
               </div>
             </div>
           </header>
-          <Editor />
         </div>
       )}
     </section>

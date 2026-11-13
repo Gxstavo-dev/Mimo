@@ -69,3 +69,25 @@ pre code.hljs {
 .markdown-alert-caution {
     border-color: #e06c75;
 }
+
+@keyframes tag-appear {
+    from {
+        opacity: 0;
+        transform: translateY(5px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.tag-appear {
+    animation: tag-appear 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tag-appear {
+        animation: none;
+    }
+}

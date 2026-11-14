@@ -60,24 +60,57 @@ export default function Editor() {
   const slashRef = useRef<HTMLParagraphElement>(null);
   const [bounds, setBounds] = useState({ top: 0, left: 0 });
   const [items, setItems] = useState<Component[]>([]);
-  const loadedNoteId = useRef<number | null>(null);
+  const [loadedNoteId, setLoadedNoteId] = useState<number | null>(null);
+  const loadedContentRef = useRef("[]");
   const [focusId, setFocusId] = useState<string | null>(null);
+  const updateNote = useNotes((state) => state.updateNote);
+  const setNote = useNotes((state) => state.setNote);
 
   useEffect(() => {
-    if (!note) return;
-    try {
-      setItems(note.content ? JSON.parse(note.content) : []);
-    } catch {
+    if (!note) {
       setItems([]);
+      setLoadedNoteId(null);
+      loadedContentRef.current = "[]";
+      return;
     }
-    loadedNoteId.current = note.id;
+
+    let loadedItems: Component[];
+    try {
+      loadedItems = note.content ? JSON.parse(note.content) : [];
+    } catch {
+      loadedItems = [];
+    }
+
+    setItems(loadedItems);
+    loadedContentRef.current = JSON.stringify(loadedItems);
+    setLoadedNoteId(note.id);
   }, [note?.id]);
 
   useEffect(() => {
-    if (!note?.id || loadedNoteId.current !== note.id) return;
-    const timeout = setTimeout(() => UpdateContent(note.id, items), 500);
+    if (!note?.id || loadedNoteId !== note.id) return;
+
+    const serializedItems = JSON.stringify(items);
+    if (serializedItems === loadedContentRef.current) return;
+
+    const timeout = setTimeout(async () => {
+      try {
+        const savedNote = await UpdateContent(note.id, items);
+        if (!savedNote) return;
+
+        updateNote(savedNote.id, {
+          content: savedNote.content,
+          updated_at: savedNote.updated_at,
+        });
+        if (useNotes.getState().note?.id === savedNote.id) {
+          loadedContentRef.current = serializedItems;
+          setNote(savedNote);
+        }
+      } catch (error) {
+        console.error("Error saving note content:", error);
+      }
+    }, 500);
     return () => clearTimeout(timeout);
-  }, [items, note?.id]);
+  }, [items, note?.id, loadedNoteId, setNote, updateNote]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {

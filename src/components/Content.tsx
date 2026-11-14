@@ -9,7 +9,7 @@ import Editor from "./Editor";
 
 const formatTime = (date: string) => {
   const time = date.split(/[ T]/)[1];
-  return time ? time.slice(0, 5) : date;
+  return time ? time.slice(0, 8) : date;
 };
 
 export default function Content() {
@@ -130,7 +130,14 @@ export default function Content() {
     const title = value.trim() || "Untitled";
     updateNote(note.id, { title });
     setNote({ ...note, title });
-    await UpdateNote(note.id, title, note.content);
+    const savedNote = await UpdateNote(note.id, title, note.content);
+    if (!savedNote) return;
+
+    updateNote(savedNote.id, {
+      content: savedNote.content,
+      updated_at: savedNote.updated_at,
+    });
+    if (useNotes.getState().note?.id === savedNote.id) setNote(savedNote);
   };
 
   const startEdit = () => {

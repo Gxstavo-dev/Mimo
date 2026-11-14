@@ -30,23 +30,37 @@ export const UpdateNote = async (
   content?: string,
 ) => {
   await Tables();
-  const result = await db.execute(
+  await db.execute(
     `
       UPDATE notes
-      SET title = $1, content = $2
+      SET title = $1,
+          content = $2,
+          updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')
       WHERE id = $3
     `,
     [title, content, id],
   );
-  return result;
+  const rows = await db.select<Note[]>(`SELECT * FROM notes WHERE id = $1`, [
+    id,
+  ]);
+  return rows[0] ?? null;
 };
 
 export const UpdateContent = async (id: number, content: Component[]) => {
   await Tables();
-  await db.execute(`UPDATE notes SET content = $1 WHERE id = $2`, [
-    JSON.stringify(content),
+  await db.execute(
+    `
+      UPDATE notes
+      SET content = $1,
+          updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')
+      WHERE id = $2
+    `,
+    [JSON.stringify(content), id],
+  );
+  const rows = await db.select<Note[]>(`SELECT * FROM notes WHERE id = $1`, [
     id,
   ]);
+  return rows[0] ?? null;
 };
 
 export const DeleteNote = async (id: number) => {

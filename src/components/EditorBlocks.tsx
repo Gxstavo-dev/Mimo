@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff } from "lucide-react";
 
 type SpeechResult = { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string; isFinal: boolean }>> };
+type SpeechRecognitionError = { error: string };
 type SpeechRecognitionLike = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
   onresult: ((event: SpeechResult) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: SpeechRecognitionError) => void) | null;
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
@@ -16,7 +17,7 @@ type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 function VoiceInputButton({ onText }: { onText: (text: string) => void }) {
   const [listening, setListening] = useState(false);
-  const [available, setAvailable] = useState(true);
+  const [message, setMessage] = useState("");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const onTextRef = useRef(onText);
 
@@ -39,7 +40,7 @@ function VoiceInputButton({ onText }: { onText: (text: string) => void }) {
     };
     const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
     if (!Recognition) {
-      setAvailable(false);
+      setMessage("El dictado por voz no está disponible en este entorno.");
       return;
     }
 
@@ -55,13 +56,20 @@ function VoiceInputButton({ onText }: { onText: (text: string) => void }) {
         .join(" ");
       if (transcript) onTextRef.current(transcript);
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
       setListening(false);
-      setAvailable(false);
+      const messages: Record<string, string> = {
+        "not-allowed": "Permite el acceso al micrófono en el aviso del sistema.",
+        "service-not-allowed": "El servicio de reconocimiento de voz está bloqueado.",
+        "audio-capture": "No se encontró un micrófono disponible.",
+        network: "El reconocimiento necesita conexión a internet.",
+        "no-speech": "No detecté voz. Vuelve a pulsar Dictar y habla cerca del micrófono.",
+      };
+      setMessage(messages[event.error] ?? "No se pudo iniciar el dictado. Revisa el micrófono e inténtalo de nuevo.");
     };
     recognition.onend = () => setListening(false);
     recognitionRef.current = recognition;
-    setAvailable(true);
+    setMessage("");
     setListening(true);
     try {
       recognition.start();
@@ -71,16 +79,19 @@ function VoiceInputButton({ onText }: { onText: (text: string) => void }) {
   };
 
   return (
-    <button
-      type="button"
-      onClick={toggleListening}
-      aria-label={available ? (listening ? "Detener dictado" : "Dictar por micrófono") : "Dictado no disponible en este navegador"}
-      title={!available ? "El dictado por voz no está disponible en este navegador" : listening ? "Detener dictado" : "Dictar por micrófono"}
-      className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-secondary ${listening ? "text-red-500" : "text-text-secondary"}`}
-    >
-      {listening ? <MicOff size={13} /> : <Mic size={13} />}
-      <span className="hidden sm:inline">{listening ? "Escuchando" : "Dictar"}</span>
-    </button>
+    <div className="flex flex-col items-end">
+      <button
+        type="button"
+        onClick={toggleListening}
+        aria-label={listening ? "Detener dictado" : "Dictar por micrófono"}
+        title={listening ? "Detener dictado" : "Dictar por micrófono"}
+        className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-secondary ${listening ? "text-red-500" : "text-text-secondary"}`}
+      >
+        {listening ? <MicOff size={13} /> : <Mic size={13} />}
+        <span className="hidden sm:inline">{listening ? "Escuchando" : "Dictar"}</span>
+      </button>
+      {message && <span role="status" className="max-w-56 text-right text-[10px] text-red-500">{message}</span>}
+    </div>
   );
 }
 
@@ -192,6 +203,9 @@ export function DictationTextBlock({ content, onChange }: { content?: string; on
         className="w-full resize-y bg-transparent px-3 py-3 text-sm leading-6 text-text-primary outline-none placeholder:text-text-idle sm:px-4"
         rows={3}
       />
+      <p className="px-3 pb-3 text-[10px] text-text-idle sm:px-4">
+        Pulsa Dictar, permite el micrófono si te lo solicita y comienza a hablar.
+      </p>
     </div>
   );
 }
@@ -243,7 +257,6 @@ export function DiagramBlock({ content, onChange }: { content?: string; onChange
     <div className="overflow-hidden rounded-xl border border-border bg-sidebar/50">
       <div className="flex min-h-11 items-center justify-between border-b border-border px-3 sm:px-4">
         <span className="text-[11px] font-medium tracking-wide text-text-secondary">Diagrama de flujo</span>
-        <VoiceInputButton onText={(text) => onChange(appendDictation(source, text))} />
       </div>
       <textarea
         value={source}

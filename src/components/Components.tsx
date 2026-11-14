@@ -1,9 +1,9 @@
 import { Check, ChevronDown, Code2, Copy, X } from "lucide-react";
 import { createElement, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { DiagramBlock, MathBlock, VoiceInputButton, appendDictation } from "./EditorBlocks";
+import { DiagramBlock, DictationTextBlock, MathBlock, VoiceInputButton, appendDictation } from "./EditorBlocks";
 
 export type tagHtml = "h1" | "h2" | "h3" | "p" | "span" | "ul" | "ol";
-export type BlockType = tagHtml | "link" | "image" | "video" | "code" | "math" | "diagram";
+export type BlockType = tagHtml | "link" | "image" | "video" | "code" | "math" | "diagram" | "dictation";
 
 export interface Component {
   id: string;
@@ -370,6 +370,11 @@ export default function Render({
             />
           ) : type === "diagram" ? (
             <DiagramBlock
+              content={content}
+              onChange={(nextContent) => onChange(id, { content: nextContent })}
+            />
+          ) : type === "dictation" ? (
+            <DictationTextBlock
               content={content}
               onChange={(nextContent) => onChange(id, { content: nextContent })}
             />

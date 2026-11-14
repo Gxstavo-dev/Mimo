@@ -160,7 +160,6 @@ export function MathBlock({ content, onChange }: { content?: string; onChange: (
     <div className="overflow-hidden rounded-xl border border-border bg-sidebar/50">
       <div className="flex min-h-11 items-center justify-between border-b border-border px-3 sm:px-4">
         <span className="text-[11px] font-medium tracking-wide text-text-secondary">Fórmula</span>
-        <VoiceInputButton onText={(text) => onChange(appendDictation(formula, text))} />
       </div>
       <textarea
         value={formula}
@@ -173,6 +172,26 @@ export function MathBlock({ content, onChange }: { content?: string; onChange: (
       <div className="overflow-x-auto border-t border-border px-4 py-5 text-xl text-text-primary">
         {formula ? <div className="min-w-fit" dangerouslySetInnerHTML={{ __html: latexToMathML(formula) }} /> : <span className="text-xs text-text-idle">La vista previa aparecerá aquí</span>}
       </div>
+    </div>
+  );
+}
+
+export function DictationTextBlock({ content, onChange }: { content?: string; onChange: (content: string) => void }) {
+  const text = content ?? "";
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-sidebar/50">
+      <div className="flex min-h-11 items-center justify-between border-b border-border px-3 sm:px-4">
+        <span className="text-[11px] font-medium tracking-wide text-text-secondary">Texto</span>
+        <VoiceInputButton onText={(transcript) => onChange(appendDictation(text, transcript))} />
+      </div>
+      <textarea
+        value={text}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        placeholder="Escribe o dicta tu texto…"
+        aria-label="Texto con dictado por voz"
+        className="w-full resize-y bg-transparent px-3 py-3 text-sm leading-6 text-text-primary outline-none placeholder:text-text-idle sm:px-4"
+        rows={3}
+      />
     </div>
   );
 }

@@ -95,6 +95,12 @@ const options: {
     content: "flowchart TD\nA[Inicio] --> B[Proceso] --> C[Fin]",
     className: "",
   },
+  {
+    type: "dictation",
+    label: "Texto con dictado",
+    content: "",
+    className: "",
+  },
 ];
 
 export default function Editor() {

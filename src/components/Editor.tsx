@@ -124,6 +124,11 @@ export default function Editor() {
       return;
     }
 
+    // Codex and other note actions can replace the selected note's content
+    // without changing its id. Reload only when the incoming content differs
+    // from the last value this editor itself saved.
+    if (loadedNoteId === note.id && note.content === loadedContentRef.current) return;
+
     let loadedItems: Component[];
     try {
       loadedItems = note.content ? JSON.parse(note.content) : [];
@@ -134,7 +139,7 @@ export default function Editor() {
     setItems(loadedItems);
     loadedContentRef.current = JSON.stringify(loadedItems);
     setLoadedNoteId(note.id);
-  }, [note?.id]);
+  }, [note?.id, note?.content, loadedNoteId]);
 
   useEffect(() => {
     if (!note?.id || loadedNoteId !== note.id) return;
@@ -147,12 +152,15 @@ export default function Editor() {
         const savedNote = await UpdateContent(note.id, items);
         if (!savedNote) return;
 
+        if (useNotes.getState().note?.id === savedNote.id) {
+          loadedContentRef.current = serializedItems;
+        }
+
         updateNote(savedNote.id, {
           content: savedNote.content,
           updated_at: savedNote.updated_at,
         });
         if (useNotes.getState().note?.id === savedNote.id) {
-          loadedContentRef.current = serializedItems;
           setNote(savedNote);
         }
       } catch (error) {

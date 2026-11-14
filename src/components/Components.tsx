@@ -34,9 +34,9 @@ const richTextTags = new Set([
   "A", "B", "BLOCKQUOTE", "BR", "CODE", "DEL", "DIV", "EM", "I", "LI",
   "OL", "P", "PRE", "S", "SPAN", "STRONG", "U", "UL",
 ]);
-const richTextStyles = new Set([
-  "background-color", "color", "font-style", "font-weight", "text-align", "text-decoration",
-]);
+// Keep semantic formatting from pasted documents, but let foreground/background
+// colors come from the active Mimo theme.
+const richTextStyles = new Set(["font-style", "font-weight", "text-align", "text-decoration"]);
 
 function sanitizeRichHtml(html: string) {
   const documentNode = new DOMParser().parseFromString(html, "text/html");
@@ -71,6 +71,40 @@ function sanitizeRichHtml(html: string) {
   };
 
   return Array.from(documentNode.body.childNodes).map(cleanNode).join("");
+}
+
+const textSizeClasses = new Set([
+  "text-xs", "text-sm", "text-base", "text-lg", "text-xl", "text-2xl", "text-3xl", "text-4xl", "text-5xl", "text-6xl", "text-7xl", "text-8xl", "text-9xl",
+  "text-left", "text-center", "text-right", "text-justify", "text-start", "text-end",
+]);
+
+function themeSafeTextClasses(className: string | undefined, type: BlockType) {
+  const classes = (className ?? "").split(/\s+/).filter(Boolean).filter((token) => {
+    const variants = token.split(":");
+    const utility = variants[variants.length - 1];
+    if (!/^!?text-/.test(utility)) return true;
+    return textSizeClasses.has(utility.replace(/^!/, "")) || /^!?text-\[[\d.]+(?:px|rem|em)\]$/.test(utility);
+  });
+  const utilities = classes.map((token) => token.split(":").pop() ?? token);
+  const defaultStyles: Partial<Record<BlockType, string>> = {
+    h1: "text-3xl font-semibold leading-tight",
+    h2: "text-2xl font-semibold leading-snug",
+    h3: "text-xl font-semibold leading-snug",
+    p: "text-sm leading-6",
+    span: "text-sm font-bold leading-6",
+    ul: "text-sm leading-6",
+    ol: "text-sm leading-6",
+  };
+  const fallbacks = (defaultStyles[type] ?? "").split(/\s+/).filter((utility) => {
+    if (utility.startsWith("text-") && !utility.startsWith("text-text-")) {
+      const hasSize = utilities.some((existing) => textSizeClasses.has(existing) || /^text-\[[\d.]+(?:px|rem|em)\]$/.test(existing));
+      return !hasSize;
+    }
+    if (utility.startsWith("font-")) return !utilities.some((existing) => existing.startsWith("font-"));
+    if (utility.startsWith("leading-")) return !utilities.some((existing) => existing.startsWith("leading-"));
+    return true;
+  });
+  return [...fallbacks, ...classes, "text-text-primary"].join(" ");
 }
 
 function CodeBlock({
@@ -275,6 +309,9 @@ export default function Render({
   return (
     <>
       {items.map(({ id, type, content, items: listItems, ...props }, index) => {
+        const { style: unsafeInlineStyle, ...safeProps } = props;
+        void unsafeInlineStyle;
+        const themedTextClasses = themeSafeTextClasses(props.className, type);
         const headingSpacing =
           index === 0
             ? ""
@@ -301,8 +338,8 @@ export default function Render({
             createElement(
               type,
               {
-                ...props,
-                className: `${props.className ?? ""} pl-5 ${
+                ...safeProps,
+                className: `${themedTextClasses} pl-5 ${
                   type === "ul" ? "list-disc" : "list-decimal"
                 }`,
               },
@@ -506,8 +543,8 @@ export default function Render({
             createElement(
               type,
               {
-                ...props,
-                className: `${props.className ?? ""} whitespace-pre-wrap break-words outline-none`,
+                ...safeProps,
+                className: `${themedTextClasses} whitespace-pre-wrap break-words outline-none`,
                 ref: (element: HTMLElement | null) =>
                   registerFocusable(id, element),
                 contentEditable: true,

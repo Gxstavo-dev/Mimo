@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "mimo",
   "version": "0.1.0",
-  "identifier": "com.ale.mimo",
+  "identifier": "com.gxstavo-dev.mimo",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -28,6 +28,33 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Gxstavo-dev",
+    "copyright": "Copyright © 2026 Gxstavo-dev",
+    "homepage": "https://github.com/Gxstavo-dev/mimo",
+    "license": "Apache-2.0",
+    "licenseFile": "../LICENSE",
+    "shortDescription": "A personal notes app in Tauri that works with Codex",
+    "category": "Productivity",
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/share/doc/mimo/copyright": "../LICENSE",
+          "/usr/share/doc/mimo/NOTICE": "../NOTICE"
+        }
+      },
+      "rpm": {
+        "files": {
+          "/usr/share/licenses/mimo/LICENSE": "../LICENSE",
+          "/usr/share/licenses/mimo/NOTICE": "../NOTICE"
+        }
+      },
+      "appimage": {
+        "files": {
+          "/usr/share/doc/mimo/LICENSE": "../LICENSE",
+          "/usr/share/doc/mimo/NOTICE": "../NOTICE"
+        }
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

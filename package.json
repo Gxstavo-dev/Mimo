@@ -3,6 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "author": {
+    "name": "Gxstavo-dev",
+    "url": "https://github.com/Gxstavo-dev"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gxstavo-dev/mimo.git"
+  },
+  "homepage": "https://github.com/Gxstavo-dev/mimo",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

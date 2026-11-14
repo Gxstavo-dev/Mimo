@@ -1,80 +1,64 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff } from "lucide-react";
-
-type SpeechResult = { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string; isFinal: boolean }>> };
-type SpeechRecognitionError = { error: string };
-type SpeechRecognitionLike = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((event: SpeechResult) => void) | null;
-  onerror: ((event: SpeechRecognitionError) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 function VoiceInputButton({ onText }: { onText: (text: string) => void }) {
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState("");
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const onTextRef = useRef(onText);
+  const listeningRef = useRef(false);
+  const unlistenRef = useRef<UnlistenFn[]>([]);
 
   useEffect(() => {
     onTextRef.current = onText;
   }, [onText]);
 
-  useEffect(() => () => recognitionRef.current?.stop(), []);
+  useEffect(() => () => {
+    if (listeningRef.current) void invoke("stop_dictation");
+    unlistenRef.current.forEach((unlisten) => unlisten());
+  }, []);
 
-  const toggleListening = () => {
+  const toggleListening = async () => {
     if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
+      setMessage("Terminando la transcripción…");
+      try {
+        await invoke("stop_dictation");
+      } catch (error) {
+        listeningRef.current = false;
+        setListening(false);
+        setMessage(`No se pudo detener el dictado: ${String(error)}`);
+        unlistenRef.current.forEach((unlisten) => unlisten());
+        unlistenRef.current = [];
+      }
       return;
     }
 
-    const speechWindow = window as typeof window & {
-      SpeechRecognition?: SpeechRecognitionConstructor;
-      webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    };
-    const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-    if (!Recognition) {
-      setMessage("El dictado por voz no está disponible en este entorno.");
-      return;
-    }
-
-    const recognition = new Recognition();
-    recognition.lang = "es-MX";
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results).slice(event.resultIndex)
-        .filter((result) => result[0]?.isFinal)
-        .map((result) => result[0].transcript.trim())
-        .filter(Boolean)
-        .join(" ");
-      if (transcript) onTextRef.current(transcript);
-    };
-    recognition.onerror = (event) => {
-      setListening(false);
-      const messages: Record<string, string> = {
-        "not-allowed": "Permite el acceso al micrófono en el aviso del sistema.",
-        "service-not-allowed": "El servicio de reconocimiento de voz está bloqueado.",
-        "audio-capture": "No se encontró un micrófono disponible.",
-        network: "El reconocimiento necesita conexión a internet.",
-        "no-speech": "No detecté voz. Vuelve a pulsar Dictar y habla cerca del micrófono.",
-      };
-      setMessage(messages[event.error] ?? "No se pudo iniciar el dictado. Revisa el micrófono e inténtalo de nuevo.");
-    };
-    recognition.onend = () => setListening(false);
-    recognitionRef.current = recognition;
-    setMessage("");
+    if (listeningRef.current) return;
+    listeningRef.current = true;
+    setMessage("Preparando el micrófono y el modelo…");
     setListening(true);
     try {
-      recognition.start();
-    } catch {
+      const unlistenTranscript = await listen<string>("dictation-transcript", (event) => {
+        onTextRef.current(event.payload);
+      });
+      const unlistenStatus = await listen<{ message: string }>("dictation-status", (event) => {
+        setMessage(event.payload.message);
+        if (event.payload.message === "Dictado detenido.") {
+          listeningRef.current = false;
+          setListening(false);
+          unlistenRef.current.forEach((unlisten) => unlisten());
+          unlistenRef.current = [];
+        }
+      });
+      unlistenRef.current = [unlistenTranscript, unlistenStatus];
+      await invoke("start_dictation");
+    } catch (error) {
+      listeningRef.current = false;
       setListening(false);
+      unlistenRef.current.forEach((unlisten) => unlisten());
+      unlistenRef.current = [];
+      setMessage(String(error));
     }
   };
 
@@ -90,7 +74,7 @@ function VoiceInputButton({ onText }: { onText: (text: string) => void }) {
         {listening ? <MicOff size={13} /> : <Mic size={13} />}
         <span className="hidden sm:inline">{listening ? "Escuchando" : "Dictar"}</span>
       </button>
-      {message && <span role="status" className="max-w-56 text-right text-[10px] text-red-500">{message}</span>}
+      {message && <span role="status" className={`max-w-56 text-right text-[10px] ${listening ? "text-text-secondary" : "text-red-500"}`}>{message}</span>}
     </div>
   );
 }
@@ -204,7 +188,7 @@ export function DictationTextBlock({ content, onChange }: { content?: string; on
         rows={3}
       />
       <p className="px-3 pb-3 text-[10px] text-text-idle sm:px-4">
-        Pulsa Dictar, permite el micrófono si te lo solicita y comienza a hablar.
+        Pulsa Dictar y comienza a hablar. El modelo se descarga la primera vez y después transcribe localmente.
       </p>
     </div>
   );

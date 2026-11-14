@@ -6,5 +6,6 @@
 - [x] Agregar dictado por micrófono e insertar la transcripción en bloques de código.
 - [x] Agregar un bloque independiente de texto normal con dictado y quitar el micrófono del bloque matemático.
 - [x] Quitar el micrófono del diagrama y mostrar instrucciones y errores del dictado.
+- [x] Reemplazar el reconocimiento del navegador por transcripción local con sherpa-onnx en Rust.
 - [x] Verificar la compilación.
 - [ ] Crear un commit por categoría.

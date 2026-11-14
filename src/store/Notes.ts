@@ -18,6 +18,11 @@ interface Notes {
   deleteNote: (id: number) => void;
 }
 
+interface Search {
+  value: string;
+  setValue: (v: string) => void;
+}
+
 export const useNotes = create<Notes>((set) => ({
   notes: [],
   note: null,
@@ -30,4 +35,9 @@ export const useNotes = create<Notes>((set) => ({
     })),
   deleteNote: (id) =>
     set((state) => ({ notes: state.notes.filter((n) => n.id !== id) })),
+}));
+
+export const useSearchNote = create<Search>((set) => ({
+  value: "",
+  setValue: (v) => set({ value: v }),
 }));

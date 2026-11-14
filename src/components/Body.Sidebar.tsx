@@ -2,12 +2,16 @@ import { useEffect } from "react";
 import { ShowNotes, DeleteNote, GetNote } from "../sql/Notes";
 import { useNotes } from "../store/Notes";
 import { Trash } from "lucide-react";
+import { useSearchNote } from "../store/Notes";
+import CustomScrollbar from "./CustomScrollbar";
 
 export default function Body() {
   const notes = useNotes((state) => state.notes);
   const setNote = useNotes((state) => state.setNote);
   const setNotes = useNotes((state) => state.setNotes);
   const deleteNote = useNotes((state) => state.deleteNote);
+
+  const value = useSearchNote((state) => state.value);
 
   useEffect(() => {
     const loadNotes = async () => {
@@ -41,12 +45,17 @@ export default function Body() {
     }
   };
 
-  const NOTES = notes.map((note) => {
+  const searchTerm = value.trim().toLowerCase();
+  const visibleNotes = notes.filter((note) =>
+    note.title.toLowerCase().includes(searchTerm),
+  );
+
+  const NOTES = visibleNotes.map((note) => {
     const title = note.title.trim();
     const words = title.split(/\s+/);
 
     const TitleCut =
-      words.length > 9 ? words.slice(0, 9).join(" ") + "..." : title;
+      words.length > 7 ? words.slice(0, 7).join(" ") + "..." : title;
 
     return (
       <div
@@ -70,8 +79,15 @@ export default function Body() {
   });
 
   return (
-    <section className="flex-1 min-h-0 w-full overflow-y-auto flex items-center flex-col gap-2">
-      {NOTES}
+    <section className="flex-1 min-h-0 w-full">
+      <CustomScrollbar
+        direction="vertical"
+        label="Notes"
+        className="h-full w-full"
+        contentClassName="flex min-h-full w-full flex-col items-center gap-2"
+      >
+        {NOTES}
+      </CustomScrollbar>
     </section>
   );
 }

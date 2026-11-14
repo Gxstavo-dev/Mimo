@@ -70,6 +70,133 @@ pre code.hljs {
     border-color: #e06c75;
 }
 
+.custom-scroll-wrapper {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+}
+
+.custom-scroll-wrapper.vertical {
+    width: 100%;
+    height: 100%;
+}
+
+.custom-scroll-wrapper.horizontal {
+    width: fit-content;
+    max-width: calc(100% - 6rem);
+    height: 100%;
+    flex: 0 1 auto;
+}
+
+.custom-scroll-viewport {
+    box-sizing: border-box;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.custom-scroll-viewport::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.custom-scroll-viewport.vertical {
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.custom-scroll-viewport.horizontal {
+    width: 100%;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 8px;
+}
+
+.custom-scroll-content.vertical {
+    width: 100%;
+    min-height: 100%;
+}
+
+.custom-scroll-content.horizontal {
+    display: flex;
+    width: max-content;
+    min-width: 100%;
+    height: 100%;
+    align-items: center;
+    gap: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.custom-scroll-track {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.custom-scroll-track.inactive {
+    visibility: hidden;
+}
+
+.custom-scroll-track.vertical {
+    top: 2px;
+    right: 1px;
+    bottom: 2px;
+    width: 6px;
+}
+
+.custom-scroll-track.horizontal {
+    right: 2px;
+    bottom: 0;
+    left: 2px;
+    height: 6px;
+}
+
+.custom-scroll-thumb {
+    position: absolute;
+    box-sizing: border-box;
+    display: block;
+    border-radius: 9999px;
+    background-color: var(--text-idle);
+    outline: none;
+    touch-action: none;
+    pointer-events: auto;
+    transition: background-color 100ms linear;
+}
+
+.custom-scroll-thumb.vertical {
+    top: 0;
+    left: 1px;
+    width: 4px;
+    cursor: grab;
+}
+
+.custom-scroll-thumb.horizontal {
+    top: 1px;
+    left: 0;
+    height: 4px;
+    cursor: grab;
+}
+
+.custom-scroll-thumb:hover,
+.custom-scroll-thumb:focus-visible {
+    background-color: var(--text-secondary);
+}
+
+.custom-scroll-thumb.dragging,
+.custom-scroll-thumb:active {
+    cursor: grabbing;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .custom-scroll-thumb {
+        transition: none;
+    }
+}
+
 @keyframes tag-appear {
     from {
         opacity: 0;

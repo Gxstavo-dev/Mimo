@@ -4,6 +4,7 @@ import { UpdateNote } from "../sql/Notes";
 import { useTags } from "../store/Tags";
 import { ShowTags, CreateTag, DeleteTag, UpdateTag } from "../sql/Tags";
 import { X } from "lucide-react";
+import CustomScrollbar from "./CustomScrollbar";
 
 const formatTime = (date: string) => {
   const time = date.split(/[ T]/)[1];
@@ -57,6 +58,7 @@ export default function Content() {
   };
 
   const handleDeleteTag = async (id: number) => {
+    if (editingTagId === id) setEditingTagId(null);
     await DeleteTag(id);
     deleteTag(id);
   };
@@ -106,6 +108,7 @@ export default function Content() {
           </p>
         )}
         <X
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => handleDeleteTag(tag.id)}
           size={10}
           className="text-icon cursor-pointer outline-none select-none"
@@ -243,9 +246,13 @@ export default function Content() {
             <div className="w-full h-10 flex items-center ">
               <p className="text-text-secondary text-[12px]">Tags:</p>
               <div className="flex-1 min-w-0 h-full flex  items-center gap-2 pl-2">
-                <div className="h-full w-fit min-w-0 max-w-[calc(100%-6rem)] flex-none flex overflow-x-auto items-center gap-2 pl-2">
+                <CustomScrollbar
+                  direction="horizontal"
+                  label="Tags"
+                  className="h-full w-fit min-w-0 max-w-[calc(100%-6rem)] flex-none"
+                >
                   {TAGS}
-                </div>
+                </CustomScrollbar>
                 <button
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleAddTagFromButton(selectedNote.id)}

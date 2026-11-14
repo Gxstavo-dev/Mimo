@@ -1,56 +1,99 @@
 import { useEffect, useRef, useState } from "react";
-import Render, { type Component, type tagHtml } from "./Components";
+import { createPortal } from "react-dom";
+import Render, { type BlockType, type Component } from "./Components";
 import { UpdateContent } from "../sql/Notes";
 import { useNotes } from "../store/Notes";
 
 const options: {
-  type: tagHtml;
+  type: BlockType;
   label: string;
   content?: string;
   items?: string[];
+  url?: string;
+  src?: string;
+  language?: string;
   className: string;
 }[] = [
   {
     type: "h1",
     label: "H1 - Titulo Grande",
     content: "Texto con h1",
-    className: "text-text-primary text-4xl",
+    className: "text-text-primary text-3xl font-semibold leading-tight",
   },
   {
     type: "h2",
     label: "H2 - Titulo Mediano",
     content: "Texto con h2",
-    className: "text-text-primary text-2xl",
+    className: "text-text-primary text-2xl font-semibold leading-snug",
   },
   {
     type: "h3",
     label: "H3 - Titulo Pequeño",
     content: "Texto con h3",
-    className: "text-text-primary text-xl",
+    className: "text-text-primary text-xl font-semibold leading-snug",
   },
   {
     type: "p",
     label: "P - Texto normal",
     content: "Texto con p",
-    className: "text-text-primary text-[12px]",
+    className: "text-text-primary text-sm leading-6",
   },
   {
     type: "span",
     label: "Span - Texto fuerte",
     content: "Texto con span",
-    className: "text-text-primary text-[12px] font-bold",
+    className: "text-text-primary text-sm leading-6 font-bold",
   },
   {
     type: "ul",
     label: "UL - Lista de puntos",
     items: [""],
-    className: "text-text-primary text-[12px]",
+    className: "text-text-primary text-sm leading-6",
   },
   {
     type: "ol",
     label: "OL - Lista numerada",
     items: [""],
-    className: "text-text-primary text-[12px]",
+    className: "text-text-primary text-sm leading-6",
+  },
+  {
+    type: "link",
+    label: "Enlace",
+    content: "Enlace",
+    url: "",
+    className: "",
+  },
+  {
+    type: "image",
+    label: "Imagen",
+    src: "",
+    className: "",
+  },
+  {
+    type: "video",
+    label: "Video embebido",
+    url: "",
+    content: "Video embebido",
+    className: "",
+  },
+  {
+    type: "code",
+    label: "Bloque de código",
+    content: "",
+    language: "plain",
+    className: "",
+  },
+  {
+    type: "math",
+    label: "Fórmula matemática",
+    content: "",
+    className: "",
+  },
+  {
+    type: "diagram",
+    label: "Diagrama de flujo",
+    content: "flowchart TD\nA[Inicio] --> B[Proceso] --> C[Fin]",
+    className: "",
   },
 ];
 
@@ -58,7 +101,8 @@ export default function Editor() {
   const note = useNotes((state) => state.note);
   const [showMenu, setShowMenu] = useState(false);
   const slashRef = useRef<HTMLParagraphElement>(null);
-  const [bounds, setBounds] = useState({ top: 0, left: 0 });
+  const menuRef = useRef<HTMLElement>(null);
+  const [bounds, setBounds] = useState({ top: 0, left: 0, maxHeight: 320 });
   const [items, setItems] = useState<Component[]>([]);
   const [loadedNoteId, setLoadedNoteId] = useState<number | null>(null);
   const loadedContentRef = useRef("[]");
@@ -115,10 +159,6 @@ export default function Editor() {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "/") {
-        if (slashRef.current) {
-          const rect = slashRef.current.getBoundingClientRect();
-          setBounds({ top: rect.top, left: rect.left });
-        }
         setShowMenu(true);
       }
       if (e.key === "Escape") setShowMenu(false);
@@ -126,6 +166,39 @@ export default function Editor() {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
+
+  useEffect(() => {
+    if (!showMenu) return;
+
+    const positionMenu = () => {
+      const anchor = slashRef.current?.getBoundingClientRect();
+      const menu = menuRef.current;
+      if (!anchor || !menu) return;
+
+      const margin = 8;
+      const maxHeight = Math.min(320, window.innerHeight - margin * 2);
+      const menuHeight = Math.min(menu.scrollHeight, maxHeight);
+      const spaceBelow = window.innerHeight - anchor.bottom - margin;
+      const top = spaceBelow >= menuHeight || spaceBelow >= 180
+        ? Math.min(anchor.bottom + 6, window.innerHeight - menuHeight - margin)
+        : Math.max(margin, anchor.top - menuHeight - 6);
+      const width = Math.min(288, window.innerWidth - margin * 2);
+      const left = Math.max(
+        margin,
+        Math.min(anchor.left, window.innerWidth - width - margin),
+      );
+
+      setBounds({ top, left, maxHeight });
+    };
+
+    positionMenu();
+    window.addEventListener("resize", positionMenu);
+    window.addEventListener("scroll", positionMenu, true);
+    return () => {
+      window.removeEventListener("resize", positionMenu);
+      window.removeEventListener("scroll", positionMenu, true);
+    };
+  }, [showMenu]);
 
   const addItem = (opt: (typeof options)[number]) => {
     const id = crypto.randomUUID();
@@ -136,6 +209,9 @@ export default function Editor() {
         type: opt.type,
         content: opt.content,
         items: opt.items,
+        url: opt.url,
+        src: opt.src,
+        language: opt.language,
         className: opt.className, // quita "autofocus" de las clases
       },
     ]);
@@ -149,9 +225,9 @@ export default function Editor() {
     );
   };
 
-  const updateItem = (id: string, content: string) => {
+  const updateItem = (id: string, changes: Partial<Component>) => {
     setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, content } : item)),
+      prev.map((item) => (item.id === id ? { ...item, ...changes } : item)),
     );
   };
 
@@ -160,22 +236,24 @@ export default function Editor() {
   };
 
   return (
-    <div className="flex-1 flex flex-col gap-5">
-      {showMenu && (
+    <div className="flex-none flex min-w-0 flex-col gap-3 overflow-x-hidden pl-7 sm:gap-4">
+      {showMenu && createPortal(
         <article
-          style={{ top: bounds.top, left: bounds.left }}
-          className="w-50 bg-background border border-border fixed flex flex-col gap-2 pt-3 pb-3 rounded-[14px]"
+          ref={menuRef}
+          style={{ top: bounds.top, left: bounds.left, maxHeight: bounds.maxHeight }}
+          className="fixed z-[9999] flex w-[min(18rem,calc(100vw-1rem))] flex-col gap-1 overflow-y-auto overscroll-contain rounded-xl border border-border bg-background p-2 shadow-xl"
         >
           {options.map((opt) => (
             <button
               key={opt.type}
               onClick={() => addItem(opt)}
-              className="flex items-center pl-2 w-full h-7 text-[12px] text-text-secondary hover:text-text-primary"
+              className="flex min-h-9 w-full shrink-0 items-center rounded-lg px-3 text-left text-xs text-text-secondary transition-colors hover:bg-sidebar hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-secondary"
             >
               {opt.label}
             </button>
           ))}
-        </article>
+        </article>,
+        document.body,
       )}
       <Render
         items={items}
@@ -184,11 +262,9 @@ export default function Editor() {
         onDelete={deleteItem}
         onListChange={updateList}
       />
-      {!showMenu && (
-        <p ref={slashRef} className="text-[12px] text-text-secondary mt-5">
+      <p ref={slashRef} className={`mt-2 text-[12px] text-text-secondary ${showMenu ? "invisible" : ""}`}>
           /
-        </p>
-      )}
+      </p>
     </div>
   );
 }

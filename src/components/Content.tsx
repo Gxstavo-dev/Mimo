@@ -217,9 +217,9 @@ export default function Content() {
   }, [edit, value, note]);
 
   return (
-    <section className="flex-1 flex items-center  justify-center gap-1 h-full bg-background">
+    <section className="flex-1 min-h-0 h-full overflow-y-auto bg-background">
       {selectedNote && (
-        <div className="w-[90%] h-[95%] flex flex-col gap-5 shrink-0">
+        <div className="mx-auto my-6 flex min-h-fit w-[min(90%,48rem)] min-w-0 flex-col gap-5 px-1 sm:my-8 sm:gap-6">
           <header className="w-full flex flex-col items-center  gap-4">
             {edit ? (
               <input

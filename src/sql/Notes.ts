@@ -1,6 +1,7 @@
 import { Component } from "../components/Components";
 import { db } from "./connection";
 import Tables from "./Tables";
+import { SaveNoteRevision } from "./NoteHistory";
 
 interface Note {
   id: number;
@@ -21,6 +22,10 @@ export const CreateNote = async () => {
   const id = await db.execute(
     `INSERT INTO notes(title,content) VALUES('Untitled',' ')`,
   );
+  if (id.lastInsertId != null) {
+    try { await SaveNoteRevision(id.lastInsertId, true); }
+    catch (error) { console.error("Could not save initial note revision:", error); }
+  }
   return id.lastInsertId;
 };
 
@@ -43,6 +48,8 @@ export const UpdateNote = async (
   const rows = await db.select<Note[]>(`SELECT * FROM notes WHERE id = $1`, [
     id,
   ]);
+  try { await SaveNoteRevision(id); }
+  catch (error) { console.error("Could not save note revision:", error); }
   return rows[0] ?? null;
 };
 
@@ -60,6 +67,8 @@ export const UpdateContent = async (id: number, content: Component[]) => {
   const rows = await db.select<Note[]>(`SELECT * FROM notes WHERE id = $1`, [
     id,
   ]);
+  try { await SaveNoteRevision(id); }
+  catch (error) { console.error("Could not save note revision:", error); }
   return rows[0] ?? null;
 };
 

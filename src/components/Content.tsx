@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNotes } from "../store/Notes";
 import { UpdateNote } from "../sql/Notes";
+import { SaveNoteRevision } from "../sql/NoteHistory";
 import { useTags } from "../store/Tags";
 import { ShowTags, CreateTag, DeleteTag, UpdateTag } from "../sql/Tags";
 import { X } from "lucide-react";
@@ -49,6 +50,7 @@ export default function Content() {
   const handleAddTag = async (idNote: number, title: string) => {
     try {
       const id = await CreateTag(title, idNote);
+      await SaveNoteRevision(idNote);
       setTags(await ShowTags(idNote));
       setValueTag("");
       setEditingTagId(id);
@@ -61,6 +63,7 @@ export default function Content() {
   const handleDeleteTag = async (id: number) => {
     if (editingTagId === id) setEditingTagId(null);
     await DeleteTag(id);
+    if (note) await SaveNoteRevision(note.id);
     deleteTag(id);
   };
 
@@ -70,6 +73,7 @@ export default function Content() {
     updateTag(id, { title: savedTitle });
     try {
       await UpdateTag(id, savedTitle);
+      if (note) await SaveNoteRevision(note.id);
     } catch (error) {
       console.error("Error updating tag:", error);
     }

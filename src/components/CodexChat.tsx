@@ -1,13 +1,14 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { ArrowUp, Brain, Check, ChevronDown, ShieldCheck, X } from "lucide-react";
+import { ArrowUp, Brain, Check, ChevronDown, Copy, GitBranch, ShieldCheck, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import codexIcon from "../assets/codex.png";
 import { useNotes } from "../store/Notes";
 import { useTags } from "../store/Tags";
 import { CreateNote, DeleteNote, ShowNotes, UpdateNote } from "../sql/Notes";
+import { SaveNoteRevision, ShowNoteRevisions, type NoteRevision } from "../sql/NoteHistory";
 import { CreateTag, DeleteTag, ShowTags } from "../sql/Tags";
 import type { Component, BlockType } from "./Components";
 import CustomScrollbar from "./CustomScrollbar";
@@ -91,25 +92,42 @@ function ContextRing({ usage, plan }: { usage: ContextUsage["tokenUsage"] | null
   const limit = usage?.modelContextWindow ?? 0;
   const used = usage?.last.inputTokens ?? 0;
   const percent = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-  const radius = 14;
+  const radius = 7;
   const circumference = 2 * Math.PI * radius;
   const planName = plan?.toLowerCase() === "free" ? "Free" : plan ? plan.split("_").join(" ") : "Plan desconocido";
-  return <div title={`Contexto del último turno: ${limit ? `${used.toLocaleString()} de ${limit.toLocaleString()} tokens (${percent}%).` : "todavía no disponible"} Plan ${planName}. Esto no representa el límite de mensajes de la cuenta.`} className="flex items-center gap-2.5 rounded-lg px-1 py-1">
-    <div className="relative h-8 w-8 shrink-0">
-      <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
-        <circle cx="18" cy="18" r={radius} fill="none" stroke="var(--border)" strokeWidth="3" />
-        <circle cx="18" cy="18" r={radius} fill="none" stroke="var(--text-secondary)" strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - percent / 100)} className="transition-[stroke-dashoffset] duration-500" />
+  return <div aria-label={`Uso de contexto: ${limit ? `${percent}%` : "sin datos"}`} title={`Contexto del último turno: ${limit ? `${used.toLocaleString()} de ${limit.toLocaleString()} tokens (${percent}%).` : "todavía no disponible"} Plan ${planName}.`} className="flex h-6 w-6 shrink-0 items-center justify-center" role="img">
+      <svg viewBox="0 0 20 20" className="h-[18px] w-[18px] -rotate-90">
+        <circle cx="10" cy="10" r={radius} fill="none" stroke="var(--border)" strokeWidth="2" />
+        <circle cx="10" cy="10" r={radius} fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - percent / 100)} className="transition-[stroke-dashoffset] duration-500" />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-medium text-text-primary">{limit ? `${percent}%` : "—"}</span>
-    </div>
-    <div className="min-w-0">
-      <p className="text-[10px] font-medium text-text-primary">Contexto de sesión <span className="text-text-idle">· {planName}</span></p>
-      <p className="text-[9px] text-text-secondary">{limit ? `${used.toLocaleString()} / ${limit.toLocaleString()} tokens en el último turno` : "Aparecerá al enviar el primer mensaje"}</p>
-    </div>
   </div>;
 }
 
 const cleanActionMarker = (text: string, accepted: boolean) => text.replace(/\s*<MIMO_ACTION>[\s\S]*?<\/MIMO_ACTION>\s*/g, accepted ? "\n\nLa propuesta está lista para revisar abajo." : "\n\nNo pude validar esa operación. Selecciona la nota objetivo y vuelve a pedir el cambio.").trim();
+
+function formatRevisionDate(value: string) {
+  const date = new Date(value.replace(" ", "T"));
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function revisionBlockCount(content: string) {
+  try {
+    const blocks: unknown = JSON.parse(content || "[]");
+    return Array.isArray(blocks) ? blocks.length : 0;
+  } catch { return 0; }
+}
+
+function revisionBlocks(content: string): Component[] {
+  try {
+    const blocks: unknown = JSON.parse(content || "[]");
+    return Array.isArray(blocks) ? blocks.filter((block): block is Component => Boolean(block && typeof block === "object" && "type" in block && blockTypes.has((block as Component).type))).slice(0, 50) : [];
+  } catch { return []; }
+}
+
+function revisionTags(value: string) {
+  try { const tags: unknown = JSON.parse(value); return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === "string") : []; }
+  catch { return []; }
+}
 
 export function CodexLauncher({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   if (open) return null;
@@ -130,6 +148,10 @@ export default function CodexChat({ onClose }: { onClose: () => void }) {
   const [threadId, setThreadId] = useState("");
   const [status, setStatus] = useState<CodexStatus | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(() => readMap<ChatMessage[]>("mimo-codex-messages")[noteSessionKey(selectedNote?.id ?? null)] ?? []);
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
+  const [changesOpen, setChangesOpen] = useState(false);
+  const [revisions, setRevisions] = useState<NoteRevision[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -249,6 +271,23 @@ export default function CodexChat({ onClose }: { onClose: () => void }) {
   }, [notes, noteTags]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" }); }, [messages, proposal]);
   useEffect(() => {
+    if (!changesOpen || linkedNoteId === null) return;
+    let active = true;
+    const loadRevisions = () => {
+      setHistoryLoading(true);
+      void ShowNoteRevisions(linkedNoteId)
+        .then((items) => { if (active) setRevisions(items); })
+        .catch((reason) => { if (active) setError(String(reason)); })
+        .finally(() => { if (active) setHistoryLoading(false); });
+    };
+    const handleHistoryChange = (event: Event) => {
+      if ((event as CustomEvent<{ noteId: number }>).detail.noteId === linkedNoteId) loadRevisions();
+    };
+    window.addEventListener("mimo:note-revisions", handleHistoryChange);
+    loadRevisions();
+    return () => { active = false; window.removeEventListener("mimo:note-revisions", handleHistoryChange); };
+  }, [changesOpen, linkedNoteId, linkedNote?.updated_at]);
+  useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); onClose(); }
     };
@@ -305,6 +344,7 @@ export default function CodexChat({ onClose }: { onClose: () => void }) {
         if (!saved) throw new Error("No se pudo guardar la nota.");
         const oldTags = await ShowTags(noteId); for (const tag of oldTags) await DeleteTag(tag.id);
         for (const title of writeProposal.tags) await CreateTag(title, noteId);
+        await SaveNoteRevision(noteId);
         const currentNotes = await ShowNotes(); setNotes(currentNotes);
         const updated = currentNotes.find((note) => note.id === noteId);
         if (updated) setNote(updated);
@@ -322,7 +362,8 @@ export default function CodexChat({ onClose }: { onClose: () => void }) {
         <img src={codexIcon} alt="" className="h-4 w-4 object-contain" /><h2 className="text-sm font-semibold">Codex</h2>
         <span className={`ml-1 h-1.5 w-1.5 rounded-full ${ready ? "bg-emerald-500" : "bg-text-idle"}`} />
         <span className="max-w-36 truncate text-[10px] text-text-secondary">{ready ? status?.account ?? "Conectado" : status ? "Sin conexión" : "Conectando…"}</span>
-        <button type="button" onClick={onClose} aria-label="Cerrar panel" title="Cerrar panel" className="ml-auto flex h-6 w-6 items-center justify-center rounded-md bg-transparent p-0 text-text-secondary hover:text-text-primary"><X size={13} /></button>
+        <button type="button" disabled={linkedNoteId === null} onClick={() => setChangesOpen((open) => !open)} aria-label="Ver cambios de la nota" title={linkedNoteId === null ? "Vincula una nota para ver sus cambios" : "Cambios de la nota"} className={`ml-auto flex h-7 w-7 items-center justify-center rounded-md transition hover:bg-sidebar hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30 ${changesOpen ? "bg-sidebar text-text-primary" : "text-text-secondary"}`}><GitBranch size={15} /></button>
+        <button type="button" onClick={onClose} aria-label="Cerrar panel" title="Cerrar panel" className="flex h-6 w-6 items-center justify-center rounded-md bg-transparent p-0 text-text-secondary hover:text-text-primary"><X size={13} /></button>
       </header>
 
       <div className="flex shrink-0 flex-col gap-2 border-b border-border px-4 py-3">
@@ -341,7 +382,6 @@ export default function CodexChat({ onClose }: { onClose: () => void }) {
           </div>}
         </div>
         {linkedNote && <p className="truncate text-[10px] text-text-idle">Contexto: «{linkedNote.title}» y sus tags.</p>}
-        {ready && <ContextRing usage={contextUsage} plan={status.accountPlan} />}
       </div>
 
       {!ready ? <div className="m-auto max-w-xs px-6 text-center">
@@ -350,14 +390,49 @@ export default function CodexChat({ onClose }: { onClose: () => void }) {
         <p className="mt-2 text-xs leading-5 text-text-secondary">{status ? status.installed ? "Codex CLI está instalado, pero no hay una cuenta iniciada. Ejecuta codex login en una terminal." : "No se pudo iniciar Codex CLI. Instálalo y asegúrate de que esté disponible en PATH." : "Comprobando la instalación y la cuenta local."}</p>
         {error && <p role="alert" className="mt-2 break-words text-[10px] text-red-500">{error}</p>}
       </div> : <>
-        <div className="flex-1 overflow-y-auto px-4 py-5">
+        {changesOpen ? <section className="flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+            <div className="min-w-0"><h3 className="text-xs font-semibold">Cambios de la nota</h3><p className="mt-0.5 truncate text-[10px] text-text-secondary">{linkedNote?.title ?? "Nota"}</p></div>
+            <button type="button" onClick={() => setChangesOpen(false)} aria-label="Volver al chat" title="Volver al chat" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-text-secondary transition hover:bg-sidebar hover:text-text-primary"><X size={14} /></button>
+          </div>
+          <div className="min-h-0 flex-1">
+            {historyLoading ? <div className="flex h-full items-center justify-center text-[11px] text-text-secondary">Cargando historial…</div>
+              : revisions.length ? <CustomScrollbar direction="vertical" label="Cambios de la nota" className="h-full w-full" contentClassName="px-4 py-4">
+                <ol className="relative space-y-3 before:absolute before:bottom-3 before:left-[9px] before:top-3 before:w-px before:bg-border">
+                  {revisions.map((revision, index) => {
+                    const tags = revisionTags(revision.tags);
+                    const blocks = revisionBlocks(revision.content);
+                    const blockCount = revisionBlockCount(revision.content);
+                    return <li key={revision.id} className="relative pl-7">
+                      <span className={`absolute left-0 top-1 flex h-[19px] w-[19px] items-center justify-center rounded-full border bg-background ${index === 0 ? "border-text-secondary text-text-primary" : "border-border text-text-idle"}`}><GitBranch size={10} /></span>
+                      <div className="rounded-xl border border-border bg-sidebar/45 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1"><p className="text-[11px] font-medium text-text-primary">{revision.summary}</p><time className="text-[9px] text-text-idle">{formatRevisionDate(revision.created_at)}</time></div>
+                        <p className="mt-2 break-words text-[11px] text-text-secondary">{revision.title || "Sin título"}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[9px] text-text-idle"><span>{blockCount} {blockCount === 1 ? "bloque" : "bloques"}</span>{tags.length > 0 && <><span aria-hidden="true">·</span><span>{tags.length} {tags.length === 1 ? "tag" : "tags"}</span></>}</div>
+                        {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.map((tag) => <span key={tag} className="rounded-full border border-border px-2 py-0.5 text-[9px] text-text-secondary">{tag}</span>)}</div>}
+                        {blocks.length > 0 && <details className="mt-2 border-t border-border/70 pt-2"><summary className="cursor-pointer select-none text-[10px] text-text-secondary hover:text-text-primary">Ver contenido de esta versión</summary><ol className="mt-2 space-y-1.5">{blocks.map((block, blockIndex) => <li key={`${revision.id}-${blockIndex}`} className="flex gap-2 text-[10px] leading-4"><span className="w-5 shrink-0 text-right text-text-idle">{blockIndex + 1}.</span><span className="min-w-0 break-words"><span className="mr-1 font-medium text-text-primary">{block.type}</span><span className="text-text-secondary">{previewBlock(block) || "(vacío)"}</span></span></li>)}</ol>{blockCount > blocks.length && <p className="mt-1 text-[9px] text-text-idle">Se muestran los primeros 50 bloques.</p>}</details>}
+                      </div>
+                    </li>;
+                  })}
+                </ol>
+              </CustomScrollbar>
+              : <div className="flex h-full flex-col items-center justify-center px-8 text-center"><GitBranch size={20} className="text-text-idle" /><p className="mt-3 text-xs font-medium">Aún no hay cambios guardados</p><p className="mt-1.5 text-[10px] leading-4 text-text-secondary">Las próximas ediciones de esta nota aparecerán aquí.</p></div>}
+          </div>
+        </section> : <div className="flex-1 overflow-y-auto px-4 py-5">
           <div className="flex flex-col gap-4">
             {!messages.length && <div className="rounded-xl bg-sidebar/70 p-3.5">
               <div className="flex items-center gap-2 text-xs font-medium"><ShieldCheck size={14} className="text-text-secondary" /> Asistente para tus notas</div>
               <p className="mt-2 text-[11px] leading-5 text-text-secondary">Puedo redactar notas con bloques del editor, organizarlas con tags y proponer cambios. Al enviar un mensaje, Codex recibe solo la nota que seleccionaste y tu solicitud. Tú confirmas antes de guardar o borrar.</p>
               <div className="mt-2 text-[10px] text-text-idle">Texto, listas, enlaces, imágenes, videos, código, fórmulas, diagramas y dictado.</div>
             </div>}
-            {messages.map((message, index) => message.role === "user" ? <div key={index} className="ml-8 whitespace-pre-wrap break-words rounded-2xl bg-sidebar px-3.5 py-2.5 text-xs leading-5">{message.content}</div> : <article key={index} className="mr-2 min-w-0 break-words text-xs leading-5 text-text-primary">
+            {messages.map((message, index) => message.role === "user" ? <div key={index} className="group ml-auto flex w-fit max-w-[90%] items-start gap-2 rounded-2xl bg-sidebar px-3.5 py-2.5 text-xs leading-5">
+              <span className="min-w-0 select-text whitespace-pre-wrap break-words">{message.content}</span>
+              <button type="button" aria-label="Copiar mensaje enviado" title={copiedMessageIndex === index ? "Copiado" : "Copiar mensaje"}
+                onClick={() => { void navigator.clipboard.writeText(message.content).then(() => { setCopiedMessageIndex(index); window.setTimeout(() => setCopiedMessageIndex((current) => current === index ? null : current), 1500); }).catch((reason) => setError(`No se pudo copiar el mensaje: ${String(reason)}`)); }}
+                className="-mr-1 -mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-idle opacity-60 transition hover:bg-background hover:text-text-primary hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-secondary">
+                {copiedMessageIndex === index ? <Check size={12} /> : <Copy size={12} />}
+              </button>
+            </div> : <article key={index} className="mr-2 min-w-0 break-words text-xs leading-5 text-text-primary">
               {message.content ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                 h1: ({ children }) => <h1 className="mb-2 mt-4 text-lg font-semibold leading-6 first:mt-0">{children}</h1>,
                 h2: ({ children }) => <h2 className="mb-2 mt-4 text-base font-semibold leading-6">{children}</h2>,
@@ -398,13 +473,13 @@ export default function CodexChat({ onClose }: { onClose: () => void }) {
             </div>}
             <div ref={bottomRef} />
           </div>
-        </div>
+        </div>}
 
         <div className="shrink-0 border-t border-border px-3 pb-3 pt-2">
           {error && <p role="alert" className="mb-2 px-1 text-[10px] text-red-500">{error}</p>}
           <form onSubmit={send} className="rounded-xl border border-border bg-background px-2.5 pt-2 shadow-sm focus-within:border-text-idle">
             <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.currentTarget.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} rows={3} placeholder={linkedNote ? `Pregunta sobre «${linkedNote.title}»…` : "Pide crear, buscar o actualizar una nota…"} disabled={!threadId || busy} className="max-h-36 min-h-[68px] w-full resize-y bg-transparent px-1 py-1 text-xs leading-5 text-text-primary outline-none placeholder:text-text-idle disabled:opacity-50" />
-            <div className="flex h-9 items-center justify-between border-t border-border/70"><span className="flex items-center gap-1 text-[9px] text-text-secondary"><ShieldCheck size={12} /> Solo lectura del sistema · confirmación para cambios</span><button type="submit" disabled={busy || !draft.trim() || !threadId} aria-label="Enviar mensaje" title="Enviar mensaje" className="flex h-7 w-7 items-center justify-center rounded-full bg-text-primary text-background transition hover:opacity-80 disabled:opacity-30"><ArrowUp size={14} /></button></div>
+            <div className="flex h-9 items-center justify-between border-t border-border/70"><span className="flex items-center gap-1 text-[9px] text-text-secondary"><ShieldCheck size={12} /> Solo lectura del sistema · confirmación para cambios</span><div className="flex items-center gap-1"><ContextRing usage={contextUsage} plan={status?.accountPlan} /><button type="submit" disabled={busy || !draft.trim() || !threadId} aria-label="Enviar mensaje" title="Enviar mensaje" className="flex h-7 w-7 items-center justify-center rounded-full bg-text-primary text-background transition hover:opacity-80 disabled:opacity-30"><ArrowUp size={14} /></button></div></div>
           </form>
           <p className="mt-1.5 text-center text-[9px] text-text-idle">Enter envía · Shift+Enter agrega línea · confirma cada cambio de nota.</p>
         </div>

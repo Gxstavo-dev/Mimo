@@ -21,6 +21,19 @@ export default async function Tables() {
         )
       `);
 
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS note_revisions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        note_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        tags TEXT NOT NULL DEFAULT '[]',
+        summary TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')),
+        FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+      )
+    `);
+
     // Migrate databases created with the old one-tag-per-note constraint.
     const indexes = await db.select<Array<{ name: string; unique: number }>>(
       `PRAGMA index_list(tags)`,

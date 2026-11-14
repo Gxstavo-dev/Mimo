@@ -15,7 +15,8 @@ import CustomScrollbar from "./CustomScrollbar";
 
 type CodexStatus = { installed: boolean; authenticated: boolean; account: string | null; accountPlan: string | null };
 type ChatMessage = { role: "user" | "assistant"; content: string };
-type ContextUsage = { threadId: string; tokenUsage: { total: { inputTokens: number }; last: { inputTokens: number }; modelContextWindow: number | null } };
+type TokenUsageBreakdown = { inputTokens: number; outputTokens: number; reasoningOutputTokens: number; totalTokens: number; cachedInputTokens: number };
+type ContextUsage = { threadId: string; tokenUsage: { total: TokenUsageBreakdown; last: TokenUsageBreakdown; modelContextWindow: number | null } };
 type NoteAction =
   | { action: "create"; title: string; tags: string[]; content: Component[] }
   | { action: "update"; note_id: number; title: string; tags: string[]; content: Component[] }
@@ -90,12 +91,16 @@ function previewBlock(block: Component) {
 
 function ContextRing({ usage, plan }: { usage: ContextUsage["tokenUsage"] | null; plan: string | null | undefined }) {
   const limit = usage?.modelContextWindow ?? 0;
-  const used = usage?.last.inputTokens ?? 0;
-  const percent = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  const contextTokens = usage?.last.totalTokens ?? 0;
+  const baselineTokens = 12_000;
+  const effectiveWindow = limit > baselineTokens ? limit - baselineTokens : limit;
+  const effectiveUsed = limit > baselineTokens ? Math.max(0, contextTokens - baselineTokens) : contextTokens;
+  const percent = effectiveWindow ? Math.min(100, Math.round((effectiveUsed / effectiveWindow) * 100)) : 0;
+  const remainingPercent = 100 - percent;
   const radius = 7;
   const circumference = 2 * Math.PI * radius;
   const planName = plan?.toLowerCase() === "free" ? "Free" : plan ? plan.split("_").join(" ") : "Plan desconocido";
-  return <div aria-label={`Uso de contexto: ${limit ? `${percent}%` : "sin datos"}`} title={`Contexto del último turno: ${limit ? `${used.toLocaleString()} de ${limit.toLocaleString()} tokens (${percent}%).` : "todavía no disponible"} Plan ${planName}.`} className="flex h-6 w-6 shrink-0 items-center justify-center" role="img">
+  return <div aria-label={`Uso de contexto: ${limit ? `${percent}% usado, ${remainingPercent}% restante` : "sin datos"}`} title={`Contexto: ${limit ? `${percent}% usado · ${remainingPercent}% restante (${contextTokens.toLocaleString()} de ${limit.toLocaleString()} tokens).` : "todavía no disponible"} Plan ${planName}.`} className="flex h-6 w-6 shrink-0 items-center justify-center" role="img">
       <svg viewBox="0 0 20 20" className="h-[18px] w-[18px] -rotate-90">
         <circle cx="10" cy="10" r={radius} fill="none" stroke="var(--border)" strokeWidth="2" />
         <circle cx="10" cy="10" r={radius} fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - percent / 100)} className="transition-[stroke-dashoffset] duration-500" />

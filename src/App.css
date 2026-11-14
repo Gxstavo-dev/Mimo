@@ -39,8 +39,11 @@
 
 .prose pre,
 pre {
-    background: #262626 !important;
-    padding: 0;
+    background: var(--sidebar) !important;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
 }
 
 pre code.hljs {
@@ -68,6 +71,22 @@ pre code.hljs {
 }
 .markdown-alert-caution {
     border-color: #e06c75;
+}
+
+.codex-thinking {
+    font-size: 11px;
+    line-height: 1rem;
+    color: transparent;
+    background-image: linear-gradient(100deg, #71717a 15%, #a1a1aa 38%, #f4f4f5 50%, #a1a1aa 62%, #71717a 85%);
+    background-size: 220% 100%;
+    background-position: 100% 0;
+    background-clip: text;
+    -webkit-background-clip: text;
+    animation: codex-thinking-sweep 1.8s linear infinite;
+}
+
+@keyframes codex-thinking-sweep {
+    to { background-position: -120% 0; }
 }
 
 .custom-scroll-wrapper {

@@ -1,4 +1,5 @@
 mod dictation;
+mod codex;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -12,10 +13,14 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .manage(dictation::DictationState::default())
+        .manage(codex::CodexState::default())
         .invoke_handler(tauri::generate_handler![
             greet,
             dictation::start_dictation,
-            dictation::stop_dictation
+            dictation::stop_dictation,
+            codex::codex_status,
+            codex::codex_ensure_session,
+            codex::codex_send,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

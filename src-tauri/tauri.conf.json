@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "mimo",
-        "width": 1000,
-        "minWidth": 1000,
+        "width": 1200,
+        "minWidth": 1200,
         "height": 650,
         "minHeight": 650,
         "decorations": false,

@@ -9,23 +9,25 @@ export default function Sidebar() {
   const toggleHidde = useHiddeSidebar((state) => state.toggle);
 
   return (
-    <aside
-      className={`${
-        hidde
-          ? "w-0 h-0 overflow-hidden"
-          : "w-sidebar h-sidebar flex shrink-0 flex-col gap-1 overflow-hidden bg-sidebar border-r border-r-border dark:bg-sidebar dark:border-r dark:border-r-border"
-      }`}
-    >
+    <>
       {hidde && (
-        <PanelRight
-          onClick={() => toggleHidde()}
-          size={15}
-          className="fixed top-4.5 left-4 cursor-pointer outline-none select-none text-icon dark:text-icon "
-        />
+        <button
+          type="button"
+          onClick={toggleHidde}
+          aria-label="Mostrar panel lateral"
+          title="Mostrar panel lateral"
+          className="fixed left-4 top-4 z-[110] flex h-8 w-8 items-center justify-center rounded-lg bg-background text-icon shadow-sm transition hover:bg-sidebar hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-secondary"
+        >
+          <PanelRight size={16} />
+        </button>
       )}
-      <Head />
-      <Body />
-      <Footer />
-    </aside>
+      {!hidde && (
+        <aside className="flex h-sidebar w-sidebar shrink-0 flex-col gap-1 overflow-hidden border-r border-r-border bg-sidebar dark:border-r-border dark:bg-sidebar">
+          <Head />
+          <Body />
+          <Footer />
+        </aside>
+      )}
+    </>
   );
 }

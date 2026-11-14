@@ -217,9 +217,15 @@ export default function Content() {
   }, [edit, value, note]);
 
   return (
-    <section className="flex-1 min-h-0 h-full overflow-y-auto bg-background">
+    <section className="flex-1 min-h-0 h-full bg-background">
+      <CustomScrollbar
+        direction="vertical"
+        label="Contenido de la nota"
+        className="h-full w-full"
+        contentClassName="min-h-full bg-background pb-16"
+      >
       {selectedNote && (
-        <div className="mx-auto my-6 flex min-h-fit w-[min(90%,48rem)] min-w-0 flex-col gap-5 px-1 sm:my-8 sm:gap-6">
+        <div className="mx-auto my-6 flex min-h-fit w-[min(calc(100%-2rem),48rem)] min-w-0 flex-col gap-5 sm:my-8 sm:gap-6">
           <header className="w-full flex flex-col items-center  gap-4">
             {edit ? (
               <input
@@ -274,6 +280,7 @@ export default function Content() {
           <Editor />
         </div>
       )}
+      </CustomScrollbar>
     </section>
   );
 }

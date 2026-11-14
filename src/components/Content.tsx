@@ -5,6 +5,7 @@ import { useTags } from "../store/Tags";
 import { ShowTags, CreateTag, DeleteTag, UpdateTag } from "../sql/Tags";
 import { X } from "lucide-react";
 import CustomScrollbar from "./CustomScrollbar";
+import Editor from "./Editor";
 
 const formatTime = (date: string) => {
   const time = date.split(/[ T]/)[1];
@@ -211,7 +212,7 @@ export default function Content() {
   return (
     <section className="flex-1 flex items-center  justify-center gap-1 h-full bg-background">
       {selectedNote && (
-        <div className="w-[90%] h-[95%] flex flex-col gap-2 shrink-0 ">
+        <div className="w-[90%] h-[95%] flex flex-col gap-5 shrink-0">
           <header className="w-full flex flex-col items-center  gap-4">
             {edit ? (
               <input
@@ -263,6 +264,7 @@ export default function Content() {
               </div>
             </div>
           </header>
+          <Editor />
         </div>
       )}
     </section>

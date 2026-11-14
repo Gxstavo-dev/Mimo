@@ -1,3 +1,4 @@
+import { Component } from "../components/Components";
 import { db } from "./connection";
 import Tables from "./Tables";
 
@@ -29,7 +30,7 @@ export const UpdateNote = async (
   content?: string,
 ) => {
   await Tables();
-  const note = await db.execute(
+  const result = await db.execute(
     `
       UPDATE notes
       SET title = $1, content = $2
@@ -37,7 +38,15 @@ export const UpdateNote = async (
     `,
     [title, content, id],
   );
-  return note;
+  return result;
+};
+
+export const UpdateContent = async (id: number, content: Component[]) => {
+  await Tables();
+  await db.execute(`UPDATE notes SET content = $1 WHERE id = $2`, [
+    JSON.stringify(content),
+    id,
+  ]);
 };
 
 export const DeleteNote = async (id: number) => {
